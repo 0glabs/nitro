@@ -21,11 +21,16 @@ import (
 	"github.com/offchainlabs/nitro/arbutil"
 	"github.com/offchainlabs/nitro/blsSignatures"
 	"github.com/offchainlabs/nitro/das/dastree"
+	"github.com/offchainlabs/nitro/das/zerogravity"
 )
 
 type DASReader interface {
 	GetByHash(ctx context.Context, hash common.Hash) ([]byte, error)
 	ExpirationPolicy(ctx context.Context) (ExpirationPolicy, error)
+}
+
+type ZgDataAvailabilityReader interface {
+	zerogravity.DataAvailabilityReader
 }
 
 type DASWriter interface {
@@ -85,6 +90,10 @@ const BlobHashesHeaderFlag byte = L1AuthenticatedMessageHeaderFlag | 0x10 // 0x5
 // BrotliMessageHeaderByte indicates that the message is brotli-compressed.
 const BrotliMessageHeaderByte byte = 0
 
+// ZgMessageHeaderFlag indicates that this data is a Blob Pointer
+// which will be used to retrieve data from zgda
+const ZgMessageHeaderFlag byte = 0x0c
+
 // KnownHeaderBits is all header bits with known meaning to this nitro version
 const KnownHeaderBits byte = DASMessageHeaderFlag | TreeDASMessageHeaderFlag | L1AuthenticatedMessageHeaderFlag | ZeroheavyMessageHeaderFlag | BlobHashesHeaderFlag | BrotliMessageHeaderByte
 
@@ -115,6 +124,10 @@ func IsBlobHashesHeaderByte(header byte) bool {
 
 func IsBrotliMessageHeaderByte(b uint8) bool {
 	return b == BrotliMessageHeaderByte
+}
+
+func IsZgMessageHeaderByte(header byte) bool {
+	return hasBits(header, ZgMessageHeaderFlag)
 }
 
 // IsKnownHeaderByte returns true if the supplied header byte has only known bits

@@ -34,6 +34,7 @@ import (
 	"github.com/offchainlabs/nitro/broadcaster"
 	"github.com/offchainlabs/nitro/cmd/chaininfo"
 	"github.com/offchainlabs/nitro/das"
+	"github.com/offchainlabs/nitro/das/zerogravity"
 	"github.com/offchainlabs/nitro/execution"
 	"github.com/offchainlabs/nitro/execution/gethexec"
 	"github.com/offchainlabs/nitro/solgen/go/bridgegen"
@@ -95,6 +96,7 @@ type Config struct {
 	ResourceMgmt        resourcemanager.Config      `koanf:"resource-mgmt" reload:"hot"`
 	// SnapSyncConfig is only used for testing purposes, these should not be configured in production.
 	SnapSyncTest SnapSyncConfig
+	ZgDA         zerogravity.ZgConfig `koanf:"zgda-cfg"`
 }
 
 func (c *Config) Validate() error {
@@ -523,6 +525,8 @@ func createNodeImpl(
 	var daWriter das.DataAvailabilityServiceWriter
 	var daReader das.DataAvailabilityServiceReader
 	var dasLifecycleManager *das.LifecycleManager
+	var zgReader zerogravity.DataAvailabilityReader
+	var zgWriter zerogravity.DataAvailabilityWriter
 	var dasKeysetFetcher *das.KeysetFetcher
 	if config.DataAvailability.Enable {
 		if config.BatchPoster.Enable {
@@ -547,6 +551,15 @@ func createNodeImpl(
 		}
 	} else if l2Config.ArbitrumChainParams.DataAvailabilityCommittee {
 		return nil, errors.New("a data availability service is required for this chain, but it was not configured")
+	} else if config.ZgDA.Enable {
+		log.Warn("zgda enabled")
+		zgService, err := zerogravity.NewZgDA(config.ZgDA)
+		if err != nil {
+			return nil, err
+		}
+
+		zgReader = zgService
+		zgWriter = zgService
 	}
 
 	// We support a nil txStreamer for the pruning code
@@ -559,6 +572,9 @@ func createNodeImpl(
 	}
 	if blobReader != nil {
 		dapReaders = append(dapReaders, daprovider.NewReaderForBlobReader(blobReader))
+	}
+	if zgReader != nil {
+		dapReaders = append(dapReaders, daprovider.NewDAProviderZg(zgReader))
 	}
 	inboxTracker, err := NewInboxTracker(arbDb, txStreamer, dapReaders, config.SnapSyncTest)
 	if err != nil {
@@ -698,6 +714,7 @@ func createNodeImpl(
 			DeployInfo:    deployInfo,
 			TransactOpts:  txOptsBatchPoster,
 			DAPWriter:     dapWriter,
+			ZgWriter:      zgWriter,
 			ParentChainID: parentChainID,
 		})
 		if err != nil {
