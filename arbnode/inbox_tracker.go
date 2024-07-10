@@ -38,13 +38,14 @@ type InboxTracker struct {
 	mutex      sync.Mutex
 	validator  *staker.BlockValidator
 	das        arbstate.DataAvailabilityReader
+	zgda       arbstate.ZgDataAvailabilityReader
 	blobReader arbstate.BlobReader
 
 	batchMetaMutex sync.Mutex
 	batchMeta      *containers.LruCache[uint64, BatchMetadata]
 }
 
-func NewInboxTracker(db ethdb.Database, txStreamer *TransactionStreamer, das arbstate.DataAvailabilityReader, blobReader arbstate.BlobReader) (*InboxTracker, error) {
+func NewInboxTracker(db ethdb.Database, txStreamer *TransactionStreamer, das arbstate.DataAvailabilityReader, zgda arbstate.ZgDataAvailabilityReader, blobReader arbstate.BlobReader) (*InboxTracker, error) {
 	// We support a nil txStreamer for the pruning code
 	if txStreamer != nil && txStreamer.chainConfig.ArbitrumChainParams.DataAvailabilityCommittee && das == nil {
 		return nil, errors.New("data availability service required but unconfigured")
@@ -53,6 +54,7 @@ func NewInboxTracker(db ethdb.Database, txStreamer *TransactionStreamer, das arb
 		db:         db,
 		txStreamer: txStreamer,
 		das:        das,
+		zgda:       zgda,
 		blobReader: blobReader,
 		batchMeta:  containers.NewLruCache[uint64, BatchMetadata](1000),
 	}
@@ -612,6 +614,9 @@ func (t *InboxTracker) AddSequencerBatches(ctx context.Context, client arbutil.L
 	}
 	if t.blobReader != nil {
 		daProviders = append(daProviders, arbstate.NewDAProviderBlobReader(t.blobReader))
+	}
+	if t.zgda != nil {
+		daProviders = append(daProviders, arbstate.NewDAProviderZg(t.zgda))
 	}
 	multiplexer := arbstate.NewInboxMultiplexer(backend, prevbatchmeta.DelayedMessageCount, daProviders, arbstate.KeysetValidate)
 	batchMessageCounts := make(map[uint64]arbutil.MessageIndex)

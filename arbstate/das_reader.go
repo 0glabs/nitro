@@ -17,11 +17,16 @@ import (
 	"github.com/offchainlabs/nitro/arbos/util"
 	"github.com/offchainlabs/nitro/blsSignatures"
 	"github.com/offchainlabs/nitro/das/dastree"
+	"github.com/offchainlabs/nitro/das/zerogravity"
 )
 
 type DataAvailabilityReader interface {
 	GetByHash(ctx context.Context, hash common.Hash) ([]byte, error)
 	ExpirationPolicy(ctx context.Context) (ExpirationPolicy, error)
+}
+
+type ZgDataAvailabilityReader interface {
+	zerogravity.DataAvailabilityReader
 }
 
 var ErrHashMismatch = errors.New("result does not match expected hash")
@@ -39,6 +44,10 @@ const L1AuthenticatedMessageHeaderFlag byte = 0x40
 
 // ZeroheavyMessageHeaderFlag indicates that this message is zeroheavy-encoded.
 const ZeroheavyMessageHeaderFlag byte = 0x20
+
+// ZgMessageHeaderFlag indicates that this data is a Blob Pointer
+// which will be used to retrieve data from zgda
+const ZgMessageHeaderFlag byte = 0x20
 
 // BlobHashesHeaderFlag indicates that this message contains EIP 4844 versioned hashes of the committments calculated over the blob data for the batch data.
 const BlobHashesHeaderFlag byte = L1AuthenticatedMessageHeaderFlag | 0x10 // 0x50
@@ -76,6 +85,10 @@ func IsBlobHashesHeaderByte(header byte) bool {
 
 func IsBrotliMessageHeaderByte(b uint8) bool {
 	return b == BrotliMessageHeaderByte
+}
+
+func IsZgMessageHeaderByte(header byte) bool {
+	return hasBits(header, ZgMessageHeaderFlag)
 }
 
 // IsKnownHeaderByte returns true if the supplied header byte has only known bits

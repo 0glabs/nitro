@@ -6,6 +6,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -30,6 +31,7 @@ import (
 	"github.com/offchainlabs/nitro/arbutil"
 	"github.com/offchainlabs/nitro/cmd/chaininfo"
 	"github.com/offchainlabs/nitro/das/dastree"
+	"github.com/offchainlabs/nitro/das/zerogravity"
 	"github.com/offchainlabs/nitro/gethhook"
 	"github.com/offchainlabs/nitro/wavmio"
 )
@@ -147,6 +149,20 @@ func (r *BlobPreimageReader) Initialize(ctx context.Context) error {
 	return nil
 }
 
+// struct for recovering data from preimage, impl interface ZgDAReader
+type PreimageZgDAReader struct{}
+
+func (dasReader *PreimageZgDAReader) Read(ctx context.Context, requestParams []zerogravity.BlobRequestParams) ([]byte, error) {
+	rlpEncode, err := rlp.EncodeToBytes(&requestParams)
+	if err != nil {
+		return nil, err
+	}
+	shaDataHash := sha256.New()
+	shaDataHash.Write(rlpEncode)
+	dataHash := shaDataHash.Sum([]byte{})
+	return wavmio.ResolveTypedPreimage(arbutil.Sha2_256PreimageType, common.BytesToHash(dataHash))
+}
+
 // To generate:
 // key, _ := crypto.HexToECDSA("0000000000000000000000000000000000000000000000000000000000000001")
 // sig, _ := crypto.Sign(make([]byte, 32), key)
@@ -215,6 +231,7 @@ func main() {
 			daProviders = append(daProviders, arbstate.NewDAProviderDAS(dasReader))
 		}
 		daProviders = append(daProviders, arbstate.NewDAProviderBlobReader(&BlobPreimageReader{}))
+		daProviders = append(daProviders, arbstate.NewDAProviderZg(&PreimageZgDAReader{}))
 		inboxMultiplexer := arbstate.NewInboxMultiplexer(backend, delayedMessagesRead, daProviders, keysetValidationMode)
 		ctx := context.Background()
 		message, err := inboxMultiplexer.Pop(ctx)
