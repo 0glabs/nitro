@@ -423,6 +423,47 @@ func (b *dAProviderForZg) RecoverPayloadFromBatch(
 	return blobs, nil
 }
 
+func RecoverPayloadFromZgBatch(
+	ctx context.Context,
+	batchNum uint64,
+	sequencerMsg []byte,
+	zgDaReader zerogravity.DataAvailabilityReader,
+	preimages map[arbutil.PreimageType]map[common.Hash][]byte,
+) ([]byte, error) {
+	log.Info("Start RecoverPayloadFromZgBatch from zgda")
+
+	var shaPreimages map[common.Hash][]byte
+	if preimages != nil {
+		if preimages[arbutil.Sha2_256PreimageType] == nil {
+			preimages[arbutil.Sha2_256PreimageType] = make(map[common.Hash][]byte)
+		}
+		shaPreimages = preimages[arbutil.Sha2_256PreimageType]
+	}
+
+	blobBytes := sequencerMsg[41:]
+	var blobRequestParams []zerogravity.BlobRequestParams
+	err := rlp.DecodeBytes(blobBytes, &blobRequestParams)
+	if err != nil {
+		return nil, err
+	}
+
+	blobs, err := zgDaReader.Read(ctx, blobRequestParams)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get blobs: %w", err)
+	}
+
+	// record preimage data
+	log.Info("Recording preimage data for zgda")
+	shaDataHash := sha256.New()
+	shaDataHash.Write(blobBytes)
+	dataHash := shaDataHash.Sum([]byte{})
+	if shaPreimages != nil {
+		shaPreimages[common.BytesToHash(dataHash)] = blobs
+	}
+
+	return blobs, nil
+}
+
 type KeysetValidationMode uint8
 
 const KeysetValidate KeysetValidationMode = 0

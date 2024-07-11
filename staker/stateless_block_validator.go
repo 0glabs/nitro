@@ -40,6 +40,7 @@ type StatelessBlockValidator struct {
 	db           ethdb.Database
 	daService    arbstate.DataAvailabilityReader
 	blobReader   arbstate.BlobReader
+	zgDAService  arbstate.ZgDataAvailabilityReader
 
 	moduleMutex           sync.Mutex
 	currentWasmModuleRoot common.Hash
@@ -225,6 +226,7 @@ func NewStatelessBlockValidator(
 	blobReader arbstate.BlobReader,
 	config func() *BlockValidatorConfig,
 	stack *node.Node,
+	zgDAService arbstate.ZgDataAvailabilityReader,
 ) (*StatelessBlockValidator, error) {
 	validationSpawners := make([]validator.ValidationSpawner, len(config().ValidationServerConfigs))
 	for i, serverConfig := range config().ValidationServerConfigs {
@@ -244,6 +246,7 @@ func NewStatelessBlockValidator(
 		db:                 arbdb,
 		daService:          das,
 		blobReader:         blobReader,
+		zgDAService:        zgDAService,
 	}
 	return validator, nil
 }
@@ -323,6 +326,17 @@ func (v *StatelessBlockValidator) ValidationEntryRecord(ctx context.Context, e *
 				_, err := arbstate.RecoverPayloadFromDasBatch(
 					ctx, batch.Number, batch.Data, v.daService, e.Preimages, arbstate.KeysetValidate,
 				)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		if arbstate.IsZgMessageHeaderByte(batch.Data[40]) {
+			if v.zgDAService == nil {
+				log.Warn("zgDA not configured, but sequencer message found with zgDA header")
+			} else {
+				_, err := arbstate.RecoverPayloadFromZgBatch(ctx, batch.Number, batch.Data, v.zgDAService, e.Preimages)
 				if err != nil {
 					return err
 				}

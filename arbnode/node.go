@@ -570,6 +570,7 @@ func createNodeImpl(
 			blobReader,
 			func() *staker.BlockValidatorConfig { return &configFetcher.Get().BlockValidator },
 			stack,
+			zgReader,
 		)
 	} else {
 		err = errors.New("no validator url specified")
