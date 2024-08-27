@@ -72,6 +72,8 @@ func (s *ZgDA) Store(ctx context.Context, seq []byte) ([]byte, error) {
 			}
 
 			log.Info("Disperse blob range", "from", idx, "to", endIdx)
+			ctx, cancel := context.WithTimeout(ctx, 180*time.Second)
+			defer cancel()
 			blobReply, err := s.Client.DisperseBlob(ctx, &blob)
 			if err != nil {
 				log.Warn("Disperse blob error", "err", err)
@@ -81,6 +83,8 @@ func (s *ZgDA) Store(ctx context.Context, seq []byte) ([]byte, error) {
 			requestId := blobReply.GetRequestId()
 			log.Info("Disperse request id", "id", hex.EncodeToString(requestId))
 			for {
+				ctx, cancel := context.WithTimeout(ctx, 180*time.Second)
+				defer cancel()
 				statusReply, err := s.Client.GetBlobStatus(ctx, &pb.BlobStatusRequest{RequestId: requestId})
 
 				if err != nil {
@@ -130,7 +134,9 @@ func (s *ZgDA) Read(ctx context.Context, requestParams []BlobRequestParams) ([]b
 	for _, requestParam := range requestParams {
 		log.Info("Requesting data from zgDA", "param", requestParam)
 
-		retrieveBlobReply, err := s.Client.RetrieveBlob(context.Background(), &pb.RetrieveBlobRequest{
+		ctx, cancel := context.WithTimeout(ctx, 180*time.Second)
+		defer cancel()
+		retrieveBlobReply, err := s.Client.RetrieveBlob(ctx, &pb.RetrieveBlobRequest{
 			StorageRoot: requestParam.DataRoot,
 			Epoch:       requestParam.Epoch,
 			QuorumId:    requestParam.QuorumId,
