@@ -30,10 +30,14 @@ The core logic for posting and retrieving data is implemented in the zerogravity
 - Store method: Handles data storage on 0G, breaking large blobs into smaller chunks if necessary.
 - Read method: Retrieves data from 0G using the provided blob parameters.
 
+### Documentation
+
+To get started with the Arbitrum 0G implementation, please refer to the [Arbitrum Orbit on 0G DA Documentation](https://docs.0g.org/build-with-0g/rollups-and-appchains/arbitrum-nitro-on-0g-da).
+
 ### Learn More About 0G
 
-[0G Website](https://0g.org/)
-[0G Github](https://github.com/0g-project/0g)
+[0G Website](https://0g.ai/)
+[0G Github](https://github.com/0glabs)
 
 ### Learn More About Arbitrum Orbit
 
