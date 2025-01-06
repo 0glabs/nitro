@@ -32,9 +32,9 @@ The core logic for posting and retrieving data is implemented in the zerogravity
 
 ### Learn More About 0G
 
-[0G Website](https://0g.org/)
-[0G Github](https://github.com/0g-project/0g)
+[0G Website](https://0g.ai/)
+[0G Github](https://github.com/0glabs)
 
 ### Learn More About Arbitrum Orbit
 
-[Arbitrum Orbit Docs](https://developer.arbitrum.io/orbit)
+[Arbitrum Orbit Docs](https://docs.arbitrum.io/launch-orbit-chain/orbit-gentle-introduction)
