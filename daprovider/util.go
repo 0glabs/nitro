@@ -69,6 +69,10 @@ const L1AuthenticatedMessageHeaderFlag byte = 0x40
 // ZeroheavyMessageHeaderFlag indicates that this message is zeroheavy-encoded.
 const ZeroheavyMessageHeaderFlag byte = 0x20
 
+// ZgMessageHeaderFlag indicates that this data is a Blob Pointer
+// which will be used to retrieve data from zgda
+const ZgDAMessageHeaderFlag byte = 0x0c
+
 // BlobHashesHeaderFlag indicates that this message contains EIP 4844 versioned hashes of the commitments calculated over the blob data for the batch data.
 const BlobHashesHeaderFlag byte = L1AuthenticatedMessageHeaderFlag | 0x10 // 0x50
 
@@ -76,7 +80,7 @@ const BlobHashesHeaderFlag byte = L1AuthenticatedMessageHeaderFlag | 0x10 // 0x5
 const BrotliMessageHeaderByte byte = 0
 
 // KnownHeaderBits is all header bits with known meaning to this nitro version
-const KnownHeaderBits byte = DASMessageHeaderFlag | TreeDASMessageHeaderFlag | L1AuthenticatedMessageHeaderFlag | ZeroheavyMessageHeaderFlag | BlobHashesHeaderFlag | BrotliMessageHeaderByte
+const KnownHeaderBits byte = DASMessageHeaderFlag | TreeDASMessageHeaderFlag | L1AuthenticatedMessageHeaderFlag | ZeroheavyMessageHeaderFlag | BlobHashesHeaderFlag | BrotliMessageHeaderByte | ZgDAMessageHeaderFlag
 
 var DefaultDASRetentionPeriod time.Duration = time.Hour * 24 * 15
 
@@ -112,4 +116,8 @@ func IsBrotliMessageHeaderByte(b uint8) bool {
 // IsKnownHeaderByte returns true if the supplied header byte has only known bits
 func IsKnownHeaderByte(b uint8) bool {
 	return b&^KnownHeaderBits == 0
+}
+
+func IsZgDAMessageHeaderByte(header byte) bool {
+	return hasBits(header, ZgDAMessageHeaderFlag)
 }

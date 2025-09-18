@@ -41,6 +41,7 @@ import (
 	"github.com/offchainlabs/nitro/daprovider/daclient"
 	"github.com/offchainlabs/nitro/daprovider/das"
 	"github.com/offchainlabs/nitro/daprovider/das/dasserver"
+	"github.com/offchainlabs/nitro/daprovider/zgda"
 	"github.com/offchainlabs/nitro/execution"
 	"github.com/offchainlabs/nitro/execution/gethexec"
 	"github.com/offchainlabs/nitro/solgen/go/bridgegen"
@@ -73,6 +74,7 @@ type Config struct {
 	SeqCoordinator           SeqCoordinatorConfig           `koanf:"seq-coordinator"`
 	DataAvailability         das.DataAvailabilityConfig     `koanf:"data-availability"`
 	DAProvider               daclient.ClientConfig          `koanf:"da-provider" reload:"hot"`
+	ZgDA                     zgda.ZgConfig                  `koanf:"zgda"`
 	SyncMonitor              SyncMonitorConfig              `koanf:"sync-monitor"`
 	Dangerous                DangerousConfig                `koanf:"dangerous"`
 	TransactionStreamer      TransactionStreamerConfig      `koanf:"transaction-streamer" reload:"hot"`
@@ -569,6 +571,10 @@ func getDAS(
 	var daClient *daclient.Client
 	var withDAWriter bool
 	var dasServerCloseFn func()
+
+	var dapReaders []daprovider.Reader
+	var dapWriter daprovider.Writer
+
 	if config.DAProvider.Enable {
 		daClient, err = daclient.NewClient(ctx, func() *rpcclient.ClientConfig { return &config.DAProvider.RPC })
 		if err != nil {
@@ -614,13 +620,22 @@ func getDAS(
 		}
 	} else if l2Config.ArbitrumChainParams.DataAvailabilityCommittee {
 		return nil, nil, nil, errors.New("a data availability service is required for this chain, but it was not configured")
+	} else if config.ZgDA.Enable {
+		log.Info("zgDA enabled")
+		zgService, err := zgda.NewZgDA(config.ZgDA)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		dapReaders = append(dapReaders, zgda.NewReaderForZgDA(zgService))
+		dapWriter = zgda.NewWriterForZgda(zgService)
 	}
 
 	// We support a nil txStreamer for the pruning code
 	if txStreamer != nil && txStreamer.chainConfig.ArbitrumChainParams.DataAvailabilityCommittee && daClient == nil {
 		return nil, nil, nil, errors.New("data availability service required but unconfigured")
 	}
-	var dapReaders []daprovider.Reader
+
 	if daClient != nil {
 		dapReaders = append(dapReaders, daClient)
 	}
@@ -628,6 +643,10 @@ func getDAS(
 		dapReaders = append(dapReaders, daprovider.NewReaderForBlobReader(blobReader))
 	}
 	if withDAWriter {
+		if dapWriter != nil {
+			return dapWriter, dasServerCloseFn, dapReaders, nil
+		}
+
 		return daClient, dasServerCloseFn, dapReaders, nil
 	}
 	return nil, dasServerCloseFn, dapReaders, nil
