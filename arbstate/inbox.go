@@ -104,7 +104,9 @@ func ParseSequencerMessage(ctx context.Context, batchNum uint64, batchBlockHash 
 		}
 
 		if !foundDA {
-			if daprovider.IsDASMessageHeaderByte(payload[0]) {
+			if daprovider.IsZgDAMessageHeaderByte(payload[0]) {
+				log.Error("No zgDA Reader configured, but sequencer message found with zgda header")
+			} else if daprovider.IsDASMessageHeaderByte(payload[0]) {
 				log.Error("No DAS Reader configured, but sequencer message found with DAS header")
 			} else if daprovider.IsBlobHashesHeaderByte(payload[0]) {
 				return nil, daprovider.ErrNoBlobReader
